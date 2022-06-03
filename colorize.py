@@ -2,6 +2,10 @@ import argparse # to parse script arguments
 from statistics import mean # to compute the mean of a list
 from tqdm import tqdm #used to generate progress bar during training
 
+import tensorflow as tf  
+import tensorboard as tb  
+tf.io.gfile = tb.compat.tensorflow_stub.io.gfile
+
 import torch
 import torch.nn as nn
 import torch.optim as optim 
@@ -70,10 +74,32 @@ if __name__=='__main__':
                                         num_workers=0)
 
 
+    unet = UNet().to(device)
+    loader = get_colorized_dataset_loader(path=data_path, 
+                                        batch_size=batch_size, 
+                                        shuffle=True, 
+                                        num_workers=0)
+
+
     optimizer = optim.Adam(unet.parameters(), lr=lr)
     writer = SummaryWriter(f'runs/{exp_name}')
     train(unet, optimizer, loader, epochs=epochs, writer=writer)
-    writer.add_graph(unet)
+    x, y = next(iter(loader))
+
+    with torch.no_grad():
+        all_embeddings = []
+        all_labels = []
+        for x, y in loader:
+            x , y = x.to(device), y.to(device)
+            embeddings = unet.get_features(x).view(-1, 128*28*28)
+            all_embeddings.append(embeddings)
+            all_labels.append(y)
+            if len(all_embeddings)>6:
+                break
+        embeddings = torch.cat(all_embeddings)
+        labels = torch.cat(all_labels)
+        writer.add_embedding(embeddings, label_img=labels, global_step=1)
+        writer.add_graph(unet, x.to(device))
 
     # Save model weights
     torch.save(unet.state_dict(), 'unet.pth')
