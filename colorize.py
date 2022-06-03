@@ -33,8 +33,6 @@ def train(net, optimizer, loader, epochs=5, writer=None):
             optimizer.step()
             t.set_description(f'training loss: {mean(running_loss)}')
 
-        break
-
         if writer is not None:
             #Logging loss in tensorboard
             writer.add_scalar('training loss', mean(running_loss), epoch)
@@ -67,6 +65,7 @@ if __name__=='__main__':
     batch_size = args.batch_size
     epochs = args.epochs
     lr = args.lr
+
     unet = UNet().to(device)
     loader = get_colorized_dataset_loader(path=data_path, 
                                         batch_size=batch_size, 
